@@ -1,0 +1,294 @@
+import React, { useState } from 'react';
+import { 
+  Mic, 
+  MicOff, 
+  Video, 
+  VideoOff, 
+  HandIcon, 
+  ScreenShare, 
+  Settings, 
+  MessageSquare, 
+  PhoneOff,
+  CircleDot,
+  Users,
+  ChevronUp,
+  ChevronDown,
+  MoreVertical,
+  Volume2,
+  VolumeX,
+  Share2
+} from 'lucide-react';
+import { useWebRTC } from '@/contexts/WebRTCContext';
+import { useAuth } from '@/hooks/use-auth';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+interface VideoControlsProps {
+  onOpenChat: () => void;
+  onLeave: () => void;
+  onToggleParticipantsList?: () => void;
+  participantsListOpen?: boolean;
+  conferenceId?: string;
+}
+
+export default function VideoControls({ 
+  onOpenChat, 
+  onLeave,
+  onToggleParticipantsList,
+  participantsListOpen,
+  conferenceId
+}: VideoControlsProps) {
+  const {
+    isAudioEnabled,
+    isVideoEnabled,
+    isScreenSharing,
+    isHandRaised,
+    isRecording,
+    toggleAudio,
+    toggleVideo,
+    toggleScreenShare,
+    toggleHand,
+    toggleRecording,
+    participants,
+    raisedHands
+  } = useWebRTC();
+
+  const { user } = useAuth();
+  const isAdmin = user?.isAdmin || false;
+  const [showTooltips, setShowTooltips] = useState(true);
+  
+  // Подсчитываем количество участников, поднявших руку
+  const raisedHandsCount = raisedHands.length;
+  
+  // Функция для копирования ссылки для приглашения
+  const shareLink = () => {
+    if (conferenceId) {
+      const url = `${window.location.origin}/conference/${conferenceId}`;
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          alert('Ссылка скопирована в буфер обмена');
+        })
+        .catch(err => {
+          console.error('Не удалось скопировать ссылку:', err);
+        });
+    }
+  };
+
+  // Скрыть подсказки через 10 секунд после первого рендера
+  React.useEffect(() => {
+    const timer = setTimeout(() => setShowTooltips(false), 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="relative bg-gradient-to-r from-zinc-900/90 via-zinc-800/90 to-zinc-900/90 p-4 border-t border-zinc-700/50 backdrop-blur-lg flex justify-center z-10">
+      <TooltipProvider delayDuration={300}>
+        <div className="flex flex-wrap justify-center gap-3 md:gap-4">
+          {/* Audio Toggle */}
+          <Tooltip open={showTooltips}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleAudio}
+                className={`flex items-center justify-center h-12 w-12 rounded-full transition-all duration-300 shadow-lg ${
+                  isAudioEnabled 
+                    ? 'bg-primary hover:bg-primary/80' 
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {isAudioEnabled ? (
+                  <Mic className="h-5 w-5 text-white" />
+                ) : (
+                  <MicOff className="h-5 w-5 text-white" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{isAudioEnabled ? 'Выключить микрофон' : 'Включить микрофон'}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Video Toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleVideo}
+                className={`flex items-center justify-center h-12 w-12 rounded-full transition-all duration-300 shadow-lg ${
+                  isVideoEnabled 
+                    ? 'bg-primary hover:bg-primary/80' 
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {isVideoEnabled ? (
+                  <Video className="h-5 w-5 text-white" />
+                ) : (
+                  <VideoOff className="h-5 w-5 text-white" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{isVideoEnabled ? 'Выключить камеру' : 'Включить камеру'}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Screen Share */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleScreenShare}
+                className={`flex items-center justify-center h-12 w-12 rounded-full transition-all duration-300 shadow-lg ${
+                  isScreenSharing 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : 'bg-zinc-700 hover:bg-zinc-600'
+                }`}
+              >
+                <ScreenShare className="h-5 w-5 text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{isScreenSharing ? 'Остановить трансляцию экрана' : 'Транслировать экран'}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Participants */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggleParticipantsList}
+                className="relative flex items-center justify-center h-12 w-12 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-all duration-300 shadow-lg"
+              >
+                <Users className="h-5 w-5 text-white" />
+                {participantsListOpen ? (
+                  <ChevronDown className="absolute -bottom-0.5 h-3 w-3 text-white" />
+                ) : (
+                  <ChevronUp className="absolute -bottom-0.5 h-3 w-3 text-white" />
+                )}
+                
+                {raisedHandsCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-amber-500 border-0">
+                    {raisedHandsCount}
+                  </Badge>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{participantsListOpen ? 'Скрыть участников' : 'Показать участников'}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Raise Hand */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleHand}
+                className={`flex items-center justify-center h-12 w-12 rounded-full transition-all duration-300 shadow-lg ${
+                  isHandRaised ? 'bg-amber-500 hover:bg-amber-600' : 'bg-zinc-700 hover:bg-zinc-600'
+                }`}
+              >
+                <HandIcon className="h-5 w-5 text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{isHandRaised ? 'Опустить руку' : 'Поднять руку'}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Chat */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onOpenChat}
+                className="flex items-center justify-center h-12 w-12 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-all duration-300 shadow-lg"
+              >
+                <MessageSquare className="h-5 w-5 text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Открыть чат</p>
+            </TooltipContent>
+          </Tooltip>
+          
+          {/* More options dropdown */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex items-center justify-center h-12 w-12 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-all duration-300 shadow-lg"
+                  >
+                    <MoreVertical className="h-5 w-5 text-white" />
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Дополнительные действия</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white min-w-[240px]">
+              <DropdownMenuItem 
+                onClick={shareLink}
+                className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer"
+              >
+                <Share2 className="mr-2 h-4 w-4 text-primary" />
+                <span>Скопировать ссылку-приглашение</span>
+              </DropdownMenuItem>
+              
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator className="bg-zinc-700" />
+                  <DropdownMenuItem 
+                    onClick={() => toggleRecording(true)}
+                    className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer"
+                  >
+                    <CircleDot className={`mr-2 h-4 w-4 ${isRecording ? 'text-red-500' : 'text-white'}`} />
+                    <span>{isRecording ? 'Остановить запись' : 'Начать запись'}</span>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem 
+                    className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer"
+                  >
+                    <Volume2 className="mr-2 h-4 w-4 text-white" />
+                    <span>Отключить микрофоны всех участников</span>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* End Call */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onLeave}
+                className="flex items-center justify-center h-12 w-12 rounded-full bg-red-600 hover:bg-red-700 transition-all duration-300 shadow-lg"
+              >
+                <PhoneOff className="h-5 w-5 text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Покинуть конференцию</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+      
+      {/* Recording indicator */}
+      {isRecording && (
+        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 py-1 px-3 bg-red-600 rounded-full flex items-center space-x-1 text-xs font-medium text-white shadow-lg">
+          <span className="animate-pulse relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-300 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+          </span>
+          <span>Запись</span>
+        </div>
+      )}
+    </div>
+  );
+}
